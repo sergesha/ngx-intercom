@@ -44,7 +44,7 @@ class HomeComponent implements OnInit {
 
 // in your other component
 import { IntercomService } from 'ngx-intercom';
-import { Subscription } from 'rxjs/Subscription';
+import { Subscription } from 'rxjs';
                                                  	
 @Component( {
   selector: 'app-other',

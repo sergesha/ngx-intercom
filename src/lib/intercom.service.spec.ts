@@ -28,7 +28,8 @@ describe('IntercomService', () => {
 
     service.read([1, 2])
       .pipe(
-        skip(1))
+        skip(1)
+      )
       .subscribe(data => {
         expect(data.content).toEqual('The Test 2');
       });
@@ -38,7 +39,8 @@ describe('IntercomService', () => {
     service.push('test', 'The Test Value');
     service.read('test')
       .pipe(
-        skip(1))
+        skip(1)
+      )
       .subscribe(data => {
         expect(data.content).toEqual(undefined);
       });
@@ -49,7 +51,8 @@ describe('IntercomService', () => {
     service.read(['test'])
       .pipe(
         take(5),
-        skip(4))
+        skip(4)
+      )
       .subscribe(data => {
         expect(data.content).toEqual('The Test Last');
       });
