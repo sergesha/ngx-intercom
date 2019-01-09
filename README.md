@@ -7,6 +7,7 @@ or implement your own RxJs service for that.
 Because it's already done for you!
 
 [![npm version](https://badge.fury.io/js/ngx-intercom.svg)](https://badge.fury.io/js/ngx-intercom)
+[![](https://data.jsdelivr.com/v1/package/npm/ngx-intercom/badge)](https://www.jsdelivr.com/package/npm/ngx-intercom)
 
 ## Install
 
