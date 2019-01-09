@@ -18,25 +18,25 @@ export class IntercomService {
   constructor() {
   }
 
-  push(key: string | number, value: any, force: boolean = false) {
-    const duplicate = this.data.get(key) === value;
+  push(channel: string | number, value: any, force: boolean = false) {
+    const duplicate = this.data.get(channel) === value;
     if (!duplicate) {
-      this.data.set(key, value);
+      this.data.set(channel, value);
     }
     if (force || !duplicate) {
-      this.subject.next(this.intercomData(key));
+      this.subject.next(this.intercomData(channel));
     }
   }
 
-  read(keys?: string | number | Array<string | number>): Observable<IntercomData> {
+  read(channels?: string | number | Array<string | number>): Observable<IntercomData> {
     const initData: Array<IntercomData> = [];
 
-    if (typeof keys !== 'undefined') {
-      if (!Array.isArray(keys)) {
-        keys = [keys];
+    if (typeof channels !== 'undefined') {
+      if (!Array.isArray(channels)) {
+        channels = [channels];
       }
 
-      keys.forEach(key => {
+      channels.forEach(key => {
         if (this.data.has(key)) {
           initData.push(this.intercomData(key));
         }
@@ -47,27 +47,27 @@ export class IntercomService {
       startWith(...initData),
       filter(data => {
         return data && typeof data.name !== 'undefined' &&
-          (typeof keys === 'undefined' || (<Array<string | number>>keys).includes(data.name));
+          (typeof channels === 'undefined' || (<Array<string | number>>channels).includes(data.name));
       })
     );
   }
 
-  last(key: string | number): any {
-    return this.data.get(key);
+  last(channel: string | number): any {
+    return this.data.get(channel);
   }
 
-  remove(key: string | number): boolean {
-    const success = this.data.delete(key);
+  remove(channel: string | number): boolean {
+    const success = this.data.delete(channel);
     if (success) {
-      this.subject.next(this.intercomData(key));
+      this.subject.next(this.intercomData(channel));
     }
     return success;
   }
 
-  private intercomData(key: string | number): IntercomData {
+  private intercomData(channel: string | number): IntercomData {
     return {
-      name: key,
-      content: this.data.get(key)
+      name: channel,
+      content: this.data.get(channel)
     };
   }
 }

@@ -1,6 +1,11 @@
 # ngx-intercom
 Intercom Service provides internal communication between app components
 
+You can call it and use as "simplest state management",
+then there is no need to use NgRx / Akita / etc.
+or implement your own RxJs service for that.
+Because it's already done for you!
+
 [![npm version](https://badge.fury.io/js/ngx-intercom.svg)](https://badge.fury.io/js/ngx-intercom)
 
 ## Install
@@ -31,7 +36,20 @@ import { IntercomService } from 'ngx-intercom';
   styleUrls: [ './home.component.scss' ]
 } )
 class HomeComponent implements OnInit {
+  testMessage;
+
   constructor(private intercom: IntercomService){}
+
+  ngOnInit() {
+    let counter = 1;
+    setInterval(() => {
+      this.testMessage = `Test Message-${counter++}`;
+      this.intercom.push('testMessage', this.testMessage);
+      console.log(this.testMessage);
+    }, 1000);
+    this.intercom.push('something', 'something');
+    this.intercom.push('and-other-messages', 'and-other-messages');
+  }
 
   onSomethingChange($event)
   {
@@ -39,7 +57,6 @@ class HomeComponent implements OnInit {
     console.log( $event.something )
   }
 
-  ngOnInit(){}
 }
 
 // in your other component
@@ -52,23 +69,36 @@ import { Subscription } from 'rxjs';
   styleUrls: [ './other.component.scss' ]
 } )
 class OtherComponent implements OnInit, OnDestroy {
+  something: any;
+  message: any;
+  testMessage$: Observable<any>;
   private subscription: Subscription;
 
   constructor(private intercom: IntercomService){
+  }
 
-      subscription = this.intercom
-        .read( [ 'something', 'and-other-messages' ] )
-	// or .read ( 'something' ) - if only one issue to be watched
-        .subscribe( data => {
-          switch (data.name) {
-            case 'something':
-              this.something = data.content || '';
-              break;
-            case 'and-other-messages':
-              this.message = data.content || '';
-              break;
-          }
-        } );
+  ngOnInit() {
+    // It's preferable!
+    // then in .html read this way:
+    // <div> {{ (testMessage$ | async).content }} </div>
+    //
+    this.testMessage$ = this.intercom.read('testMessage');
+
+    // ... and this way also available
+    //
+    this.subscription = this.intercom
+      .read( [ 'something', 'and-other-messages' ] )
+      // or .read ( 'something' ) - if only one issue to be watched
+      .subscribe( data => {
+        switch (data.name) {
+          case 'something':
+            this.something = data.content || '';
+            break;
+          case 'and-other-messages':
+            this.message = data.content || '';
+            break;
+        }
+      } );
 
   }
 
@@ -78,10 +108,8 @@ class OtherComponent implements OnInit, OnDestroy {
     console.log( $event.anything )
   }
 
-  ngOnInit(){}
-
   ngOnDestroy(){
-    subscription.unsubscribe();
+    this.subscription.unsubscribe();
   }
 }
 ```
@@ -89,24 +117,24 @@ class OtherComponent implements OnInit, OnDestroy {
 
 ```typescript
 /**
- * Push the new message (key : value), if force === true - will be forcebly repeated even it's duplicate
+ * Push the new message / state (channel : value), if force === true - will be forcebly repeated even it's duplicate
  */
-push( key: string | number, value: any, force: boolean = false )
+push( channel: string | number, value: any, force: boolean = false )
 
 /**
- * Read the stream of messages (key : value), if keys are empty - read all the messages, otherwise - only specified
+ * Read the stream of messages / state changes (channel : value), if channels are empty - read all the messages / state changes, otherwise - only specified
  */
-read( keys?: string | number | Array<string | number> ): Observable<IntercomData>
+read( channels?: string | number | Array<string | number> ): Observable<IntercomData>
 
 /**
- * Read the last value of message by key specified
+ * Read the last value of message / state by channel specified
  */
-last( key: string | number ): any
+last( channel: string | number ): any
 
 /**
- * Remove the message by key specified
+ * Remove the message / state by channel specified
  */
-remove( key: string | number ): boolean
+remove( channel: string | number ): boolean
 
 ```
 ### Contribute
