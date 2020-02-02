@@ -1,4 +1,5 @@
 # ngx-intercom
+
 Intercom Service provides internal communication between app components
 
 You can call it and use as "simplest state management",
@@ -14,6 +15,8 @@ Because it's already done for you!
 `npm i ngx-intercom --save`
 
 ### Import the service to your project and use it in your Component pushing new 'message' of any type intended for others components to be aware of it and reading it whenever the 'message' change in any components
+Using of localStorage can be configured also to permanently save data.
+
 
 ```typescript
 import { IntercomModule } from 'ngx-intercom';
@@ -22,7 +25,10 @@ import { IntercomModule } from 'ngx-intercom';
 @NgModule( {
   imports: [
     ...
-    IntercomModule.forRoot()
+    IntercomModule.forRoot({
+        useLocalStorage: true, // optional, false by default
+        forceUpdate: false,    // optional, false by default
+    })
     ...
   ]
 } )
@@ -48,13 +54,17 @@ class HomeComponent implements OnInit {
       this.intercom.push('testMessage', this.testMessage);
       console.log(this.testMessage);
     }, 1000);
+
     this.intercom.push('something', 'something');
-    this.intercom.push('and-other-messages', 'and-other-messages');
+
+    setTimeout(() => {
+       this.intercom.push('and-other-messages', 'and-other-messages');
+    }, 3000);
   }
 
   onSomethingChange($event)
   {
-    this.intercom.push ('something', $event.something);
+    this.intercom.push('something', $event.something);
     console.log( $event.something )
   }
 
@@ -63,7 +73,7 @@ class HomeComponent implements OnInit {
 // in your other component
 import { IntercomService } from 'ngx-intercom';
 import { Subscription } from 'rxjs';
-                                                 	
+
 @Component( {
   selector: 'app-other',
   templateUrl: './other.component.html',
@@ -72,8 +82,9 @@ import { Subscription } from 'rxjs';
 class OtherComponent implements OnInit, OnDestroy {
   something: any;
   message: any;
-  testMessage$: Observable<any>;
-  private subscription: Subscription;
+  testMessage$: Observable<string>;
+
+  private onDestroy$: Subject<void> = new Subject();
 
   constructor(private intercom: IntercomService){
   }
@@ -81,63 +92,78 @@ class OtherComponent implements OnInit, OnDestroy {
   ngOnInit() {
     // It's preferable!
     // then in .html read this way:
-    // <div> {{ (testMessage$ | async).content }} </div>
+    // <div> {{ testMessage$ | async }} </div>
     //
-    this.testMessage$ = this.intercom.read('testMessage');
+    this.testMessage$ = this.intercom.read<string>('testMessage').pipe(
+        pluck('testMessage'),
+    );
 
     // ... and this way also available
     //
-    this.subscription = this.intercom
+    this.intercom
       .read( [ 'something', 'and-other-messages' ] )
+      .pipe(
+          takeUntil(this.onDestroy$),
+      )
       // or .read ( 'something' ) - if only one issue to be watched
       .subscribe( data => {
-        switch (data.name) {
-          case 'something':
-            this.something = data.content || '';
-            break;
-          case 'and-other-messages':
-            this.message = data.content || '';
-            break;
-        }
-      } );
+          if (data['something']) {
+              this.something = data['something'];
+          }
+          if (data['and-other-messages']) {
+              this.message = data['and-other-messages'];
+          }
+      });
 
   }
 
   onAnythingChange($event)
   {
-    this.intercom.push ('anything', $event.anything);
-    console.log( $event.anything )
+    this.intercom.push('anything', $event.anything);
+    console.log($event.anything)
   }
 
   ngOnDestroy(){
-    this.subscription.unsubscribe();
+    this.onDestroy$.next();
   }
 }
 ```
+
+### Interfaces
+
+```typescript
+export interface IntercomData<T = any> {
+    [key: string]: T;
+}
+```
+
 ### Methods
 
 ```typescript
 /**
- * Push the new message / state (channel : value), if force === true - will be forcebly repeated even it's duplicate
+ * Push the new message / state (channel : value), 
+ *  if useLocalStorage === true - localStorage will be used to store data (false by default)
+ *  if forceUpdate === true - will be forcebly repeated even it's duplicate (false by default)
  */
-push( channel: string | number, value: any, force: boolean = false )
+push<T>( channel: string, value: T, useLocalStorage: boolean = false, forceUpdate: boolean = false ): void
 
 /**
  * Read the stream of messages / state changes (channel : value), if channels are empty - read all the messages / state changes, otherwise - only specified
  */
-read( channels?: string | number | Array<string | number> ): Observable<IntercomData>
+read<T>( channels?: string | Array<string> ): Observable<IntercomData<T>>
 
 /**
  * Read the last value of message / state by channel specified
  */
-last( channel: string | number ): any
+last<T>( channel: string ): T
 
 /**
  * Remove the message / state by channel specified
  */
-remove( channel: string | number ): boolean
+remove( channel: string ): boolean
 
 ```
+
 ### Contribute
 
 Any pull-request is more than welcome :boom: :smile:

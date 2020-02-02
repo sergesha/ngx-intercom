@@ -1,16 +1,18 @@
 import { ModuleWithProviders, NgModule } from '@angular/core';
-import { IntercomService } from './intercom.service';
+import { IntercomOptions, IntercomService } from './intercom.service';
 
-export { IntercomData, IntercomService } from './intercom.service';
+export { IntercomOptions, IntercomData, IntercomService } from './intercom.service';
 
-@NgModule( {
-    providers: []
-} )
+@NgModule({
+	providers: [],
+})
 export class IntercomModule {
-    static forRoot(): ModuleWithProviders {
-        return {
-            ngModule: IntercomModule,
-            providers: [ IntercomService ]
-        };
-    }
+	static forRoot(defaultOptions?: Partial<IntercomOptions>): ModuleWithProviders {
+        Object.assign(IntercomService.defaultOptions, defaultOptions);
+
+		return {
+			ngModule: IntercomModule,
+			providers: [IntercomService],
+		};
+	}
 }
