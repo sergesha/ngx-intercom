@@ -1,7 +1,11 @@
-import { Injectable, OnDestroy } from '@angular/core';
+import { Inject, Injectable, InjectionToken, OnDestroy } from '@angular/core';
 
 import { Observable, Subject } from 'rxjs';
-import { filter, shareReplay, startWith } from 'rxjs/operators';
+import { filter, shareReplay, startWith, takeUntil } from 'rxjs/operators';
+
+export const INTERCOM_SERVICE_DEFAULT_OPTIONS_TOKEN: InjectionToken<Partial<IntercomOptions>> = new InjectionToken(
+    'Ngx-Intercom Service Default Options'
+);
 
 export interface IntercomOptions {
     useLocalStorage: boolean,
@@ -18,17 +22,19 @@ export const STORAGE_EVENT_TYPE = 'storage';
     providedIn: 'root',
 })
 export class IntercomService implements OnDestroy {
-    public static readonly defaultOptions: IntercomOptions = {
+    private readonly defaultOptions: IntercomOptions = {
         useLocalStorage: false,
         forceUpdate: false,
     };
     // tslint:disable-next-line:no-any
     private readonly memorizedData: Map<string, any> = new Map();
     private readonly onUpdate$: Subject<IntercomData> = new Subject();
+    private readonly onDestroy$: Subject<void> = new Subject();
     private readonly subscriptions: Map<string, Observable<IntercomData>> = new Map();
 
-    constructor() {
-        this.start();
+    constructor(@Inject(INTERCOM_SERVICE_DEFAULT_OPTIONS_TOKEN) defaultOptions: Partial<IntercomOptions>) {
+        Object.assign(this.defaultOptions, defaultOptions);
+        this.startStorageEventListener();
     }
 
     private static setDataToLocalStorage<T>(key: string, value: T): void {
@@ -70,16 +76,17 @@ export class IntercomService implements OnDestroy {
     }
 
     ngOnDestroy(): void {
-        this.stop();
+        this.stopStorageEventListener();
+        this.onUpdate$.complete();
+        this.onDestroy$.next();
     }
 
-    private start(): void {
+    private startStorageEventListener(): void {
         window.addEventListener(STORAGE_EVENT_TYPE, this.storageEventListener.bind(this));
     }
 
-    private stop(): void {
+    private stopStorageEventListener(): void {
         window.removeEventListener(STORAGE_EVENT_TYPE, this.storageEventListener.bind(this));
-        this.onUpdate$.complete();
     }
 
     private storageEventListener(event: StorageEvent): void {
@@ -110,8 +117,8 @@ export class IntercomService implements OnDestroy {
     public push<T>(
         key: string,
         value: T,
-        useLocalStorage: boolean = IntercomService.defaultOptions.useLocalStorage,
-        forceUpdate: boolean = IntercomService.defaultOptions.forceUpdate,
+        useLocalStorage: boolean = this.defaultOptions.useLocalStorage,
+        forceUpdate: boolean = this.defaultOptions.forceUpdate,
     ): void {
         const duplicate: boolean = this.memorizedData.get(key) === value;
         const typedValue: T = IntercomService.coerceReturnType<T>(value);
@@ -150,7 +157,6 @@ export class IntercomService implements OnDestroy {
 
         if (!this.subscriptions.has(subKey)) {
             this.subscriptions.set(subKey, this.onUpdate$.asObservable().pipe(
-                startWith(initData),
                 filter((change: IntercomData<T>) => {
                     return change &&
                         (typeof keys === 'undefined' || Object.keys(change).every((key: string) => keys.includes(key)));
@@ -159,10 +165,13 @@ export class IntercomService implements OnDestroy {
                     bufferSize: 1,
                     refCount: true,
                 }),
+                takeUntil(this.onDestroy$),
             ));
         }
 
-        return this.subscriptions.get(subKey);
+        return this.subscriptions.get(subKey).pipe(
+            startWith(initData),
+        );
     }
 
     public last<T>(key: string): T {
